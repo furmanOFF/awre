@@ -148,10 +148,9 @@ code_change(_OldVsn, State, _Extra) ->
 
 -spec handle_message_from_client(Msg :: term(), From :: term(), State :: #state{}) ->
   {noreply, #state{}} | {reply, Result :: term(), #state{}}.
-handle_message_from_client({connect,Host,Port,Realm,Encoding}=Msg,From,
+handle_message_from_client({connect, Uri, Realm, Encoding}=Msg,From,
                            #state{transport={T,_}}=State) ->
-
-  Args = #{awre_con => self(), host => Host, port => Port, realm => Realm, enc => Encoding,
+  Args = #{awre_con => self(), uri => Uri, realm => Realm, enc => Encoding,
            version => awre:get_version(), client_details => ?CLIENT_DETAILS},
   {Trans,TState} = case T of
                          none ->

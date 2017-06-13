@@ -29,7 +29,7 @@
 -export([stop_client/1,stop_client/3]).
 
 -export([connect/2]).
--export([connect/5]).
+-export([connect/4, connect/5]).
 
 -export([subscribe/3,subscribe/4]).
 -export([unsubscribe/2]).
@@ -75,18 +75,24 @@ stop_client(ConPid) ->
 
 %% @doc Connect to a router in the VM.
 %% The connection will be established to the local router in the VM.
--spec connect(ConPid :: pid(), Realm :: binary()) -> {ok,SessionId :: non_neg_integer() ,RouterDetails :: list()}.
-connect(ConPid,Realm) ->
-  gen_server:call(ConPid,{awre_call,{connect,undefined,undefined,Realm,undefined}}).
+-spec connect(ConPid :: pid(), Realm :: binary()) -> {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
+connect(ConPid, Realm) ->
+  gen_server:call(ConPid,{awre_call, {connect, undefined, Realm, undefined}}).
 
 %% @doc connect to a remote router.
+%% Connect to the router at the given uri Uri to the realm Realm.
+%% The connection will be established by using the encoding Encoding for serialization.
+-spec connect(ConPid :: pid(), Uri :: string(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
+  {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
+connect(ConPid, Uri, Realm, Encoding) ->
+  gen_server:call(ConPid, {awre_call, {connect, Uri, Realm, Encoding}}).
+
 %% Connect to the router at the given host Host on port Port to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
-%% The connection wil be a direct TCP connection, there is no support for websocket connections.
--spec connect(ConPid :: pid(), Host :: string(), Port :: non_neg_integer(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> {ok,SessionId :: non_neg_integer() ,RouterDetails :: list()}.
-connect(ConPid,Host,Port,Realm,Encoding) ->
-  gen_server:call(ConPid,{awre_call,{connect,Host,Port,Realm,Encoding}}).
-
+-spec connect(ConPid :: pid(), Host :: string(), Port :: non_neg_integer(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
+  {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
+connect(ConPid, Host, Port, Realm, Encoding) ->
+  gen_server:call(ConPid,{awre_call, {connect, {Host, Port}, Realm, Encoding}}).
 
 
 %% @doc Subscribe to an event.

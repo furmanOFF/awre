@@ -25,21 +25,18 @@
 
 -export([init/1]).
 
-
+%% behaviour
 -callback init(Args :: map()) -> {ok,State :: any()}.
 -callback send_to_router(Message :: term(), State :: any()) -> {ok, NewState :: any()}.
 -callback handle_info(Data :: any(), State :: any()) -> {ok, NewState :: any()}.
 -callback shutdown(State :: any()) -> ok.
 
-
-
-init(Args) ->
-  #{host := Host} = Args,
-  Module = case Host == undefined of
-             true ->
-               awre_trans_local;
-             false ->
-               awre_trans_tcp
-           end,
-  {ok,State} = Module:init(Args),
-  {Module,State}.
+init(Args0=#{uri:=Uri}) ->
+    {Module, Args1} = case Uri of
+        undefined -> {awre_trans_local, Args0};
+        [$w,$s,$:,$/,$/ | _] -> {awre_trans_ws, Args0};
+        [$w,$s,$s,$:,$/,$/ | _] -> {awre_trans_ws, Args0};
+        {Host, Port} -> {awre_trans_tcp, Args0#{host=>Host, port=>Port}}
+    end,
+    {ok, State} = Module:init(Args1),
+    {Module, State}.
