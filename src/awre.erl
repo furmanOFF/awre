@@ -89,7 +89,7 @@ connect(ConPid, Uri, Realm, Encoding) ->
 
 %% Connect to the router at the given host Host on port Port to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
--spec connect(ConPid :: pid(), Host :: string(), Port :: non_neg_integer(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
+-spec connect(ConPid :: pid(), Host :: inet:hostname(), Port :: inet:port_number(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
   {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
 connect(ConPid, Host, Port, Realm, Encoding) ->
   gen_server:call(ConPid,{awre_call, {connect, {Host, Port}, Realm, Encoding}}).

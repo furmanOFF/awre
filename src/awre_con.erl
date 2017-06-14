@@ -110,8 +110,7 @@ handle_call(_Msg,_From,State) ->
 
 
 handle_cast({awre_out,Msg}, State) ->
-  {ok,NewState} = handle_message_from_router(Msg,State),
-  {noreply,NewState};
+  handle_message_from_router(Msg,State);
 handle_cast({shutdown,Details,Reason}, #state{goodbye_sent=GS,transport= {TMod,TState}}=State) ->
   NewState = case GS of
                true ->
@@ -194,12 +193,12 @@ handle_message_from_client(_Msg,_From,State) ->
 handle_message_from_router({welcome,SessionId,RouterDetails},State) ->
   {From,_} = get_ref(hello,hello,State),
   gen_server:reply(From,{ok,SessionId,RouterDetails}),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({abort,Details,Reason},State) ->
   {From,_} = get_ref(hello,hello,State),
   gen_server:reply(From,{abort,Details,Reason}),
-  {stop,normal,State};
+  {stop, Reason, State};
 
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
   NewState = case GS of
@@ -222,14 +221,14 @@ handle_message_from_router({subscribed,RequestId,SubscriptionId},#state{ets=Ets}
   {Pid,_} = From,
   ets:insert_new(Ets,#subscription{id=SubscriptionId,mfa=Mfa,pid=Pid}),
   gen_server:reply(From,{ok,SubscriptionId}),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({unsubscribed,RequestId},#state{ets=Ets}=State) ->
   {From,Args} = get_ref(RequestId,unsubscribe,State),
   SubscriptionId = maps:get(sub_id,Args),
   ets:delete(Ets,SubscriptionId),
   gen_server:reply(From,ok),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({event,SubscriptionId,PublicationId,Details},State) ->
   handle_message_from_router({event,SubscriptionId,PublicationId,Details,undefined,undefined},State);
@@ -252,7 +251,7 @@ handle_message_from_router({event,SubscriptionId,_PublicationId,Details,Argument
           io:format("error ~p:~p with event: ~n~p~n",[Error,Reason,erlang:get_stacktrace()])
       end
   end,
-  {ok,State};
+  {noreply,State};
 handle_message_from_router({result,RequestId,Details},State) ->
   handle_message_from_router({result,RequestId,Details,undefined,undefined},State);
 handle_message_from_router({result,RequestId,Details,Arguments},State) ->
@@ -260,7 +259,7 @@ handle_message_from_router({result,RequestId,Details,Arguments},State) ->
 handle_message_from_router({result,RequestId,Details,Arguments,ArgumentsKw},State) ->
   {From,_} = get_ref(RequestId,call,State),
   gen_server:reply(From,{ok,Details,Arguments,ArgumentsKw}),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({registered,RequestId,RegistrationId},#state{ets=Ets}=State) ->
   {From,Args} = get_ref(RequestId,register,State),
@@ -268,14 +267,14 @@ handle_message_from_router({registered,RequestId,RegistrationId},#state{ets=Ets}
   {Pid,_} = From,
   ets:insert_new(Ets,#registration{id=RegistrationId,mfa=Mfa,pid=Pid}),
   gen_server:reply(From,{ok,RegistrationId}),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({unregistered,RequestId},#state{ets=Ets}=State) ->
   {From,Args} = get_ref(RequestId,unregister,State),
   RegistrationId = maps:get(reg_id,Args),
   ets:delete(Ets,RegistrationId),
   gen_server:reply(From,ok),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router({invocation,RequestId,RegistrationId,Details},State) ->
   handle_message_from_router({invocation,RequestId,RegistrationId,Details,undefined,undefined},State);
@@ -317,11 +316,11 @@ handle_message_from_router({error,call,RequestId,Details,Error,Arguments},State)
 handle_message_from_router({error,call,RequestId,Details,Error,Arguments,ArgumentsKw},State) ->
   {From,_} = get_ref(RequestId,call,State),
   gen_server:reply(From,{error,Details,Error,Arguments,ArgumentsKw}),
-  {ok,State};
+  {noreply,State};
 
 handle_message_from_router(Msg,State) ->
   io:format("unhandled message ~p~n",[Msg]),
-  {ok,State}.
+  {noreply,State}.
 
 %
 % Session Scope IDs

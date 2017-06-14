@@ -26,8 +26,8 @@
 	{vsn, "0.1.0"},
 	{modules, []},
 	{registered, [
-    awre_sup
-  ]},
+	    awre_sup
+	]},
 	{applications, [
 		kernel,
 		stdlib,

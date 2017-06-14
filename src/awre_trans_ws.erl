@@ -54,10 +54,10 @@ handle_info({gun_up, Pid, _}, S=#state{gun=Pid, enc=Enc, path=Path}) ->
 handle_info({gun_ws_upgrade, _Pid, ok, _}, S=#state{gun=_Pid, realm=Realm, version=Version, client_details=Details}) ->
     send_to_router({hello, Realm, #{agent => Version, roles => Details}}, S);
 handle_info({gun_response, _Pid, _, _, Status, Headers}, S=#state{ gun=_Pid, awre=Con}) ->
-    awre_con:send_to_client({abort, {Status, Headers}, ws_upgrade_failed}, Con),
+    awre_con:send_to_client({abort, #{status => Status, headers => Headers}, ws_upgrade_failed}, Con),
     {ok, S};
 handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
-    awre_con:send_to_client({abort, Reason, ws_upgrade_failed}, Con),
+    awre_con:send_to_client({abort, #{reason => Reason}, ws_upgrade_failed}, Con),
     {ok, S};
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
