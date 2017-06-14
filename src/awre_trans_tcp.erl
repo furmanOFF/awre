@@ -106,7 +106,7 @@ shutdown(#state{socket=S}) ->
 forward_messages([],_) ->
   ok;
 forward_messages([Msg|Tail],#state{awre_con=Con}=State) ->
-  awre_con:send_to_client(Msg,Con),
+  awre_con:send_to_client(Con, Msg),
   forward_messages(Tail,State).
 
 

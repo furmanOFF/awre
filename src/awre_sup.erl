@@ -40,8 +40,6 @@ start_link() ->
 %% supervisor.
 
 init([]) ->
-Procs = [
-		{awre_con, {awre_con, start_link, []},
-     temporary, 5000, supervisor, []}
-	],
-	{ok, {{simple_one_for_one, 1000, 10}, Procs}}.
+	{ok, {{simple_one_for_one, 10, 10}, [
+        {awre_con, {awre_con, start_link, []}, temporary, 5000, worker, [awre_con]}
+    ]}}.

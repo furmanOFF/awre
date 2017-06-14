@@ -52,10 +52,10 @@ send_to_router(MsgToRouter, #state{routing=Routing ,awre_con=Con} = State) ->
       awre_con:close_connection(Con),
       {ok,State#state{routing=NewRouting}};
     {reply,Msg,NewRouting} ->
-      awre_con:send_to_client(Msg,Con),
+      awre_con:send_to_client(Con, Msg),
       {ok,State#state{routing=NewRouting}};
     {reply_stop,Msg,NewRouting} ->
-      awre_con:send_to_client(Msg,Con),
+      awre_con:send_to_client(Con, Msg),
       awre_con:close_connection(Con),
       {ok,State#state{routing=NewRouting}}
   end.
@@ -68,10 +68,10 @@ handle_info({erwa,MsgFromRouter},#state{routing=Routing ,awre_con=Con}=State) ->
       awre_con:close_connection(Con),
       {ok,State#state{routing=NewRouting}};
     {send,Msg,NewRouting} ->
-      awre_con:send_to_client(Msg,Con),
+      awre_con:send_to_client(Con, Msg),
       {ok,State#state{routing=NewRouting}};
     {send_stop,Msg,NewRouting} ->
-      awre_con:send_to_client(Msg,Con),
+      awre_con:send_to_client(Con, Msg),
       awre_con:close_connection(Con),
       {ok,State#state{routing=NewRouting}}
   end.

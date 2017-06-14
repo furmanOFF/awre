@@ -25,11 +25,8 @@
 
 
 %% API for connecting to a router (either local or remote)
--export([start_client/0]).
--export([stop_client/1,stop_client/3]).
-
--export([connect/2]).
--export([connect/4, connect/5]).
+-export([connect/1, connect/3, connect/4]).
+-export([shutdown/1, shutdown/3]).
 
 -export([subscribe/3,subscribe/4]).
 -export([unsubscribe/2]).
@@ -55,45 +52,34 @@ get_version() ->
 
 
 
-%% connecting to a (remote) router (for peer)
-
-%% @doc start a connection server to handle a connection to a router.
-%% The connection can be either remote or local within the VM.
--spec start_client() -> {ok,Con :: pid()}.
-start_client() ->
-  supervisor:start_child(awre_sup,[[]]).
-
-%% @doc stop the given connection
-%% TODO: implement
--spec stop_client(ConPid :: pid(),Details :: list(),Reason :: binary()) -> ok.
-stop_client(ConPid,Details,Reason) ->
-  gen_server:cast(ConPid,{shutdown,Details,Reason}).
-
--spec stop_client(ConPid :: pid()) -> ok.
-stop_client(ConPid) ->
-  gen_server:cast(ConPid,{shutdown,#{},goodbye_and_out}).
-
 %% @doc Connect to a router in the VM.
 %% The connection will be established to the local router in the VM.
--spec connect(ConPid :: pid(), Realm :: binary()) -> {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
-connect(ConPid, Realm) ->
-  gen_server:call(ConPid,{awre_call, {connect, undefined, Realm, undefined}}).
+-spec connect(Realm :: binary()) -> {ok, Con :: pid()}.
+connect(Realm) ->
+  supervisor:start_child(awre_sup, [self(), undefined, Realm, undefined]).
 
 %% @doc connect to a remote router.
 %% Connect to the router at the given uri Uri to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
--spec connect(ConPid :: pid(), Uri :: string(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
-  {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
-connect(ConPid, Uri, Realm, Encoding) ->
-  gen_server:call(ConPid, {awre_call, {connect, Uri, Realm, Encoding}}).
+-spec connect(Uri :: string(), Realm :: binary(), Encoding :: json | msgpack) -> {ok, Con :: pid()}.
+connect(Uri, Realm, Encoding) ->
+  supervisor:start_child(awre_sup, [self(), Uri, Realm, Encoding]).
 
 %% Connect to the router at the given host Host on port Port to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
--spec connect(ConPid :: pid(), Host :: inet:hostname(), Port :: inet:port_number(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> 
-  {ok, SessionId :: non_neg_integer(), RouterDetails :: list()}.
-connect(ConPid, Host, Port, Realm, Encoding) ->
-  gen_server:call(ConPid,{awre_call, {connect, {Host, Port}, Realm, Encoding}}).
+-spec connect(Host :: inet:hostname(), Port :: inet:port_number(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> {ok, Con :: pid()}.
+connect(Host, Port, Realm, Encoding) ->
+  supervisor:start_child(awre_sup, [self(), {Host, Port}, Realm, Encoding]).
 
+%% @doc shutdown given connection
+%% TODO: implement
+-spec shutdown(ConPid :: pid(), Details :: list(), Reason :: binary()) -> ok.
+shutdown(ConPid, Details, Reason) ->
+  gen_server:cast(ConPid, {shutdown, Details, Reason}).
+
+-spec shutdown(ConPid :: pid()) -> ok.
+shutdown(ConPid) ->
+  gen_server:cast(ConPid, {shutdown, #{}, goodbye_and_out}).
 
 %% @doc Subscribe to an event.
 %% subscribe to the event Topic.

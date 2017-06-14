@@ -54,16 +54,16 @@ handle_info({gun_up, Pid, _}, S=#state{gun=Pid, enc=Enc, path=Path}) ->
 handle_info({gun_ws_upgrade, _Pid, ok, _}, S=#state{gun=_Pid, realm=Realm, version=Version, client_details=Details}) ->
     send_to_router({hello, Realm, #{agent => Version, roles => Details}}, S);
 handle_info({gun_response, _Pid, _, _, Status, Headers}, S=#state{ gun=_Pid, awre=Con}) ->
-    awre_con:send_to_client({abort, #{status => Status, headers => Headers}, ws_upgrade_failed}, Con),
+    awre_con:send_to_client(Con, {abort, #{status => Status, headers => Headers}, ws_upgrade_failed}),
     {ok, S};
 handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
-    awre_con:send_to_client({abort, #{reason => Reason}, ws_upgrade_failed}, Con),
+    awre_con:send_to_client(Con, {abort, #{reason => Reason}, ws_upgrade_failed}),
     {ok, S};
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
 handle_info({gun_ws, _Pid, Frame}, S=#state{awre=Con, gun=_Pid, enc=Enc}) ->
     {Messages, <<>>} = wamper_protocol:deserialize(Frame, Enc),
-    lists:foreach(fun(Msg) -> awre_con:send_to_client(Msg, Con) end, Messages),
+    lists:foreach(fun(Msg) -> awre_con:send_to_client(Con, Msg) end, Messages),
     {ok, S};
 handle_info(_, State) ->
     {ok, State}.   
