@@ -164,11 +164,11 @@ handle_message_from_client({error,invocation,RequestId,ArgsKw,ErrorUri}, _From, 
 
 handle_message_from_router({welcome, SessionId, RouterDetails}, State) ->
   {Pid, _} = get_ref(hello, undefined, State),
-  Pid ! {awre_welcome, SessionId, RouterDetails},
+  Pid ! {awre_welcome, self(), SessionId, RouterDetails},
   {noreply, State};
 handle_message_from_router({abort, Details, Reason},State) ->
   {Pid, _} = get_ref(hello, undefined, State),
-  Pid ! {awre_abort, Details, Reason},
+  Pid ! {awre_abort, self(), Details, Reason},
   {stop, Reason, State};
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
   NewState = case GS of
@@ -185,13 +185,13 @@ handle_message_from_router({subscribed, RequestId, SubscriptionId}, #state{ets=E
   {Pid, Args} = get_ref(subscribe, RequestId, State),
   Mfa = maps:get(mfa,Args),
   ets:insert_new(Ets,#subscription{id=SubscriptionId,mfa=Mfa,pid=Pid}),
-  Pid ! {awre_subscribed, RequestId, SubscriptionId},
+  Pid ! {awre_subscribed, self(), RequestId, SubscriptionId},
   {noreply, State};
 handle_message_from_router({unsubscribed,RequestId}, #state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(unsubscribe, RequestId, State),
   SubscriptionId = maps:get(sub_id,Args),
   ets:delete(Ets, SubscriptionId),
-  Pid ! {awre_unsubscribed, RequestId},
+  Pid ! {awre_unsubscribed, self(), RequestId},
   {noreply, State};
 
 handle_message_from_router({event,SubscriptionId,PublicationId,Details},State) ->
@@ -207,7 +207,7 @@ handle_message_from_router({event,SubscriptionId,_PublicationId,Details,Argument
   case Mfa of
     undefined ->
       % send it to user process
-      Pid ! {awre, Msg};
+      Pid ! {awre, self(), Msg};
     {M,F,S}  ->
       try
         erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S])
@@ -222,21 +222,21 @@ handle_message_from_router({result,RequestId,Details,Arguments},State) ->
   handle_message_from_router({result,RequestId,Details,Arguments,undefined},State);
 handle_message_from_router({result,RequestId,Details,Arguments,ArgumentsKw},State) ->
   {Pid, _} = get_ref(call, RequestId, State),
-  Pid ! {awre_result, RequestId, Details, Arguments, ArgumentsKw},
+  Pid ! {awre_result, self(), RequestId, Details, Arguments, ArgumentsKw},
   {noreply,State};
 
 handle_message_from_router({registered,RequestId,RegistrationId},#state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(register, RequestId, State),
   Mfa = maps:get(mfa,Args),
   ets:insert_new(Ets,#registration{id=RegistrationId, mfa=Mfa, pid=Pid}),
-  Pid ! {awre_registered, RequestId, RegistrationId},
+  Pid ! {awre_registered, self(), RequestId, RegistrationId},
   {noreply,State};
 
 handle_message_from_router({unregistered,RequestId},#state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(unregister, RequestId,State),
   RegistrationId = maps:get(reg_id,Args),
   ets:delete(Ets,RegistrationId),
-  Pid ! {awre_unregistered, RequestId},
+  Pid ! {awre_unregistered, self(), RequestId},
   {noreply,State};
 
 handle_message_from_router({invocation,RequestId,RegistrationId,Details},State) ->
@@ -251,7 +251,7 @@ handle_message_from_router({invocation,RequestId,RegistrationId,Details,Argument
   NewState = case Mfa of
                undefined ->
                  % send it to the user process
-                 Pid ! {awre, Msg},
+                 Pid ! {awre, self(), Msg},
                  State;
                {M,F,S}  ->
                  try erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S]) of
@@ -278,7 +278,7 @@ handle_message_from_router({error,call,RequestId,Details,Error,Arguments},State)
   handle_message_from_router({error,call,RequestId,Details,Error,Arguments,undefined},State);
 handle_message_from_router({error,call,RequestId,Details,Error,Arguments,ArgumentsKw},State) ->
   {Pid, _} = get_ref(call, RequestId, State),
-  Pid ! {awre_error, RequestId, Details, Error, Arguments, ArgumentsKw},
+  Pid ! {awre_error, self(), RequestId, Details, Error, Arguments, ArgumentsKw},
   {noreply, State}.
 
 %

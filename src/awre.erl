@@ -106,9 +106,9 @@ await_connect(ServerPid, Timeout) ->
   {ok, integer(), map()} | {abort, map(), atom()} | {error, term()}.
 await_connect(ServerPid, Timeout, MRef) ->
   receive
-    {awre_welcome, SessionId, RouterDetails} -> 
+    {awre_welcome, ServerPid, SessionId, RouterDetails} -> 
       {ok, SessionId, RouterDetails};
-    {awre_abort, Details, Reason} -> 
+    {awre_abort, ServerPid, Details, Reason} -> 
       {abort, Details, Reason};
     {'DOWN', MRef, process, ServerPid, Reason} ->
       {error, Reason}
