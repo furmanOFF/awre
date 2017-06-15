@@ -163,7 +163,7 @@ handle_message_from_client({error,invocation,RequestId,ArgsKw,ErrorUri}, _From, 
   {reply, ok, NewState}.
 
 handle_message_from_router({welcome, SessionId, RouterDetails}, State) ->
-  {Pid, _} = get_ref(hello, undefined,State),
+  {Pid, _} = get_ref(hello, undefined, State),
   Pid ! {awre_welcome, SessionId, RouterDetails},
   {noreply, State};
 handle_message_from_router({abort, Details, Reason},State) ->
@@ -172,18 +172,15 @@ handle_message_from_router({abort, Details, Reason},State) ->
   {stop, Reason, State};
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
   NewState = case GS of
-               true ->
-                 State;
-               false ->
-                 {ok,NState} = send_to_router({goodbye,[],goodbye_and_out},State),
-                 NState
-             end,
+    true -> 
+      State;
+    false ->
+      {ok,NState} = send_to_router({goodbye,[],goodbye_and_out},State),
+      NState
+  end,
   {stop, normal, NewState};
-
 %handle_message_from_router({error,},#state{ets=Ets}) ->
-
 %handle_message_from_router({published,},#state{ets=Ets}) ->
-
 handle_message_from_router({subscribed, RequestId, SubscriptionId}, #state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(subscribe, RequestId, State),
   Mfa = maps:get(mfa,Args),

@@ -28,6 +28,8 @@
 -export([connect/1, connect/3, connect/4]).
 -export([shutdown/1, shutdown/3]).
 
+-export([await_connect/1, await_connect/2, await_connect/3]).
+
 -export([subscribe/3,subscribe/4]).
 -export([unsubscribe/2]).
 -export([publish/3,publish/4,publish/5]).
@@ -80,6 +82,39 @@ shutdown(ConPid, Details, Reason) ->
 -spec shutdown(ConPid :: pid()) -> ok.
 shutdown(ConPid) ->
   gen_server:cast(ConPid, {shutdown, #{}, goodbye_and_out}).
+
+
+-spec await_connect(pid()) -> 
+  {ok, integer(), map()} | {abort, map(), atom()} | {error, term()}.
+await_connect(ServerPid) ->
+  MRef = monitor(process, ServerPid),
+  Res = await_connect(ServerPid, 5000, MRef),
+  demonitor(MRef, [flush]),
+  Res.
+
+-spec await_connect(pid(), reference() | timeout()) -> 
+  {ok, integer(), map()} | {abort, map(), atom()} | {error, term()}.
+await_connect(ServerPid, MRef) when is_reference(MRef) ->
+  await_connect(ServerPid, 5000, MRef);
+await_connect(ServerPid, Timeout) ->
+  MRef = monitor(process, ServerPid),
+  Res = await_connect(ServerPid, Timeout, MRef),
+  demonitor(MRef, [flush]),
+  Res.
+
+-spec await_connect(pid(), timeout(), reference()) -> 
+  {ok, integer(), map()} | {abort, map(), atom()} | {error, term()}.
+await_connect(ServerPid, Timeout, MRef) ->
+  receive
+    {awre_welcome, SessionId, RouterDetails} -> 
+      {ok, SessionId, RouterDetails};
+    {awre_abort, Details, Reason} -> 
+      {abort, Details, Reason};
+    {'DOWN', MRef, process, ServerPid, Reason} ->
+      {error, Reason}
+  after Timeout ->
+    {error, timeout}
+  end.
 
 %% @doc Subscribe to an event.
 %% subscribe to the event Topic.
