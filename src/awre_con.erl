@@ -105,7 +105,8 @@ init({Pid, Uri, Realm, Encoding}) ->
 
 handle_call({awre_call, Msg}, From, State) ->
   handle_message_from_client(Msg, From, State);
-handle_call(_Msg, _From, State) ->
+handle_call(Msg, _From, State) ->
+  error_logger:warning_msg("unexpected call: ~w~n", [Msg]),
   {noreply, State}.
 
 handle_cast({awre_out, Msg}, State) ->
@@ -121,13 +122,15 @@ handle_cast({shutdown, Details, Reason}, #state{goodbye_sent=GS,transport= {TMod
   {noreply,NewState#state{goodbye_sent=true}};
 handle_cast(terminate, State) ->
   {stop, normal, State};
-handle_cast(_Request, State) ->
+handle_cast(Msg, State) ->
+  error_logger:warning_msg("cast: ~w~n", [Msg]),
 	{noreply, State}.
 
 handle_info(Data,#state{transport = {T,TState}} = State) ->
   {ok, NewTState} = T:handle_info(Data,TState),
   {noreply, State#state{transport={T, NewTState}}};
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+  error_logger:warning_msg("info: ~w~n", [Info]),
 	{noreply, State}.
 
 terminate(_Reason, #state{transport={TMod, TState}}) ->
@@ -187,9 +190,9 @@ handle_message_from_router({subscribed, RequestId, SubscriptionId}, #state{ets=E
   ets:insert_new(Ets,#subscription{id=SubscriptionId,mfa=Mfa,pid=Pid}),
   Pid ! {awre_subscribed, self(), RequestId, SubscriptionId},
   {noreply, State};
-handle_message_from_router({unsubscribed,RequestId}, #state{ets=Ets}=State) ->
+handle_message_from_router({unsubscribed, RequestId}, #state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(unsubscribe, RequestId, State),
-  SubscriptionId = maps:get(sub_id,Args),
+  SubscriptionId = maps:get(sub_id, Args),
   ets:delete(Ets, SubscriptionId),
   Pid ! {awre_unsubscribed, self(), RequestId},
   {noreply, State};
@@ -212,7 +215,8 @@ handle_message_from_router({event,SubscriptionId,_PublicationId,Details,Argument
       try
         erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S])
       catch
-        Error:Reason -> Pid ! {awre_error, Error, Reason, erlang:get_stacktrace()}
+        Error:Reason -> 
+          Pid ! {awre_event_error, self(), Error, Reason, erlang:get_stacktrace()}
       end
   end,
   {noreply, State};
@@ -245,31 +249,31 @@ handle_message_from_router({invocation,RequestId,RegistrationId,Details,Argument
   handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments,undefined},State);
 handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments,ArgumentsKw}=Msg,#state{ets=Ets}=State) ->
   [#registration{
-                id = RegistrationId,
-                mfa = Mfa,
-                pid=Pid}] = ets:lookup(Ets,RegistrationId),
+    id = RegistrationId,
+    mfa = Mfa,
+    pid=Pid}] = ets:lookup(Ets,RegistrationId),
   NewState = case Mfa of
-               undefined ->
-                 % send it to the user process
-                 Pid ! {awre, self(), Msg},
-                 State;
-               {M,F,S}  ->
-                 try erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S]) of
-                   {ok,Options,ResA,ResAKw} ->
-                     {ok,NState} = send_to_router({yield,RequestId,Options,ResA,ResAKw},State),
-                     NState;
-                   {error,Details,Uri,Arguments,ArgumentsKw} ->
-                     {ok,NState} = send_to_router({error,invocation,RequestId,Details,Uri,Arguments,ArgumentsKw},State),
-                     NState;
-                   Other ->
-                     {ok,NState} = send_to_router({error,invocation,RequestId,#{<<"result">> => Other },invalid_argument,undefined,undefined},State),
-                     NState
-                 catch
-                   Error:Reason ->
-                     {ok,NState} = send_to_router({error,invocation,RequestId,#{<<"reason">> => io_lib:format("~p:~p",[Error,Reason])},invalid_argument,undefined,undefined},State),
-                     NState
-                 end
-             end,
+   undefined ->
+      % send it to the user process
+      Pid ! {awre, self(), Msg},
+      State;
+    {M,F,S}  ->
+      try erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S]) of
+        {ok,Options,ResA,ResAKw} ->
+          {ok, NState} = send_to_router({yield,RequestId,Options,ResA,ResAKw},State),
+          NState;
+        {error,Details,Uri,Arguments,ArgumentsKw} ->
+          {ok, NState} = send_to_router({error,invocation,RequestId,Details,Uri,Arguments,ArgumentsKw},State),
+          NState;
+        Other ->
+          {ok, NState} = send_to_router({error,invocation,RequestId,#{<<"result">> => Other },invalid_argument,undefined,undefined},State),
+          NState
+      catch
+        Error:Reason ->
+          {ok, NState} = send_to_router({error,invocation,RequestId,#{<<"reason">> => io_lib:format("~p:~p",[Error,Reason])},invalid_argument,undefined,undefined},State),
+          NState
+      end
+  end,
   {ok,NewState};
 
 handle_message_from_router({error,call,RequestId,Details,Error},State) ->
