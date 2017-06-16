@@ -20,7 +20,7 @@
 init(#{awre_con:=Con, uri:=Uri, enc:=Encoding, realm:=Realm, version:=Version, client_details:=Details}) ->
     Opts = [{scheme_defaults, [{ws, 80}, {wss, 443}]}],
     {ok, {_Scheme, _, Host, Port, Path, _}} = http_uri:parse(Uri, Opts),
-    {ok, Pid} = gun:open(Host, Port, #{protocols => [http]}),
+    {ok, Pid} = gun:open(Host, Port, #{protocols => [http], retry => 0}),
     link(Pid),
     {ok, #state{
         path = Path,
@@ -59,8 +59,6 @@ handle_info({gun_response, _Pid, _, _, Status, Headers}, S=#state{ gun=_Pid, awr
     {ok, S};
 handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
     awre_con:send_to_client(Con, {abort, #{reason => Reason}, ws_upgrade_failed}),
-    {ok, S};
-handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
 handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{awre=Con, gun=_Pid, enc=Enc, mode=_Mode}) ->
     {Messages, <<>>} = wamper_protocol:deserialize(Frame, Enc),
