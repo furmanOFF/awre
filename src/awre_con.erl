@@ -77,8 +77,8 @@
 }).
 
 %% API
--spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::string(), Encoding::atom()) -> {ok, pid()}.
-start_link(Pid, Uri, Realm, Encoding) ->
+-spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::binary(), Encoding::atom()) -> {ok, pid()}.
+start_link(Pid, Uri, Realm, Encoding) when is_binary(Realm) ->
   gen_server:start_link(?MODULE, {Pid, Uri, Realm, Encoding}, []).
 
 -spec send_to_client(Pid :: pid(), Msg :: term()) -> ok.

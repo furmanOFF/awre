@@ -43,13 +43,14 @@ send_to_router(Message, S=#state{gun=Pid, enc=Enc, mode=Mode}) ->
     {ok, S}.
 
 handle_info({gun_up, Pid, _}, S=#state{gun=Pid, enc=Enc, path=Path}) ->
-    Proto = case Enc of 
-        msgpack -> <<"wamp.2.msgpack">>;
-        json -> <<"wamp.2.json">>
+    Handler = case Enc of 
+        msgpack -> {<<"wamp.2.msgpack">>, gun_ws_handler};
+        json -> {<<"wamp.2.json">>, gun_ws_handler}
     end,
-    gun:ws_upgrade(Pid, Path, [
-        {<<"sec-websocket-protocol">>, Proto}
-    ], #{compress => true}),
+    gun:ws_upgrade(Pid, Path, [], #{
+        protocols => [Handler],
+        compress => true
+    }),
     {ok, S};
 handle_info({gun_ws_upgrade, _Pid, ok, _}, S=#state{gun=_Pid, realm=Realm, version=Version, client_details=Details}) ->
     send_to_router({hello, Realm, #{agent => Version, roles => Details}}, S);
@@ -61,7 +62,7 @@ handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
     {ok, S};
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
-handle_info({gun_ws, _Pid, Frame}, S=#state{awre=Con, gun=_Pid, enc=Enc}) ->
+handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{awre=Con, gun=_Pid, enc=Enc, mode=_Mode}) ->
     {Messages, <<>>} = wamper_protocol:deserialize(Frame, Enc),
     lists:foreach(fun(Msg) -> awre_con:send_to_client(Con, Msg) end, Messages),
     {ok, S};
