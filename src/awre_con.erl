@@ -142,22 +142,22 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 handle_message_from_client({subscribe,Options,Topic,Mfa}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({subscribe, request_id, Options, Topic}, Pid, #{mfa => Mfa}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({unsubscribe, SubscriptionId}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({unsubscribe, request_id, SubscriptionId}, Pid, #{sub_id=>SubscriptionId}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({publish, Options, Topic, Arguments, ArgumentsKw}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({publish, request_id, Options, Topic, Arguments, ArgumentsKw}, Pid, #{}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({register, Options, Procedure, Mfa}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({register, request_id, Options, Procedure}, Pid, #{mfa=>Mfa}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({unregister, RegistrationId}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({unregister, request_id, RegistrationId}, Pid, #{reg_id => RegistrationId}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({call,Options,Procedure,Arguments,ArgumentsKw}, {Pid, _}, State) ->
   {RequestId, NewState} = send_and_ref({call, request_id, Options, Procedure, Arguments, ArgumentsKw}, Pid, #{}, State),
-  {reply, RequestId, NewState};
+  {reply, {ok, RequestId}, NewState};
 handle_message_from_client({yield,_,_,_,_}=Msg, _From, State) ->
   {ok, NewState} = send_to_router(Msg,State),
   {reply, ok, NewState};
