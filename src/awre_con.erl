@@ -201,7 +201,7 @@ handle_message_from_router({event,SubscriptionId,PublicationId,Details},State) -
   handle_message_from_router({event,SubscriptionId,PublicationId,Details,undefined,undefined},State);
 handle_message_from_router({event,SubscriptionId,PublicationId,Details,Arguments},State) ->
   handle_message_from_router({event,SubscriptionId,PublicationId,Details,Arguments,undefined},State);
-handle_message_from_router({event,SubscriptionId,_PublicationId,Details,Arguments,ArgumentsKw}=Msg,#state{ets=Ets}=State) ->
+handle_message_from_router({event,SubscriptionId,PublicationId,Details,Arguments,ArgumentsKw}, #state{ets=Ets}=State) ->
   [#subscription{
     id = SubscriptionId,
     mfa = Mfa,
@@ -210,7 +210,7 @@ handle_message_from_router({event,SubscriptionId,_PublicationId,Details,Argument
   case Mfa of
     undefined ->
       % send it to user process
-      Pid ! {awre, self(), Msg};
+      Pid ! {awre_event, self(), SubscriptionId, PublicationId, Details, Arguments, ArgumentsKw};
     {M,F,S}  ->
       try
         erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S])
@@ -247,7 +247,7 @@ handle_message_from_router({invocation,RequestId,RegistrationId,Details},State) 
   handle_message_from_router({invocation,RequestId,RegistrationId,Details,undefined,undefined},State);
 handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments},State) ->
   handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments,undefined},State);
-handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments,ArgumentsKw}=Msg,#state{ets=Ets}=State) ->
+handle_message_from_router({invocation,RequestId,RegistrationId,Details,Arguments,ArgumentsKw}, #state{ets=Ets}=State) ->
   [#registration{
     id = RegistrationId,
     mfa = Mfa,
@@ -255,7 +255,7 @@ handle_message_from_router({invocation,RequestId,RegistrationId,Details,Argument
   NewState = case Mfa of
    undefined ->
       % send it to the user process
-      Pid ! {awre, self(), Msg},
+      Pid ! {awre_invocation, self(), RequestId, RegistrationId, Details, Arguments, ArgumentsKw},
       State;
     {M,F,S}  ->
       try erlang:apply(M,F,[Details,Arguments,ArgumentsKw,S]) of
