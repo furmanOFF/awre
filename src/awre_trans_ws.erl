@@ -11,6 +11,7 @@
     path::iodata(),
     awre::pid(),
     gun::pid(),
+    monitor::reference(),
     enc::msgpack|json, 
     mode::text|binary,
     realm, version, client_details
@@ -27,6 +28,7 @@ init(#{awre_con:=Con, uri:=Uri, enc:=Encoding, realm:=Realm, version:=Version, c
         path = Path,
         awre = Con, 
         gun = Pid, 
+        monitor = monitor(process, Pid),
         enc = Encoding,
         mode = case Encoding of 
             %TODO: handle other encodings
@@ -63,6 +65,9 @@ handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
     {ok, S};
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
+handle_info({'DOWN', _Ref, process, _Pid, Reason}, S=#state{monitor=_Ref}) ->
+    awre_con:send_to_client(Con, {abort, #{reason => Reason}, gun_down}),
+    {ok, S#state{gun=undefined, monitor=undefined}};
 handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{awre=Con, gun=_Pid, enc=Enc, mode=_Mode}) ->
     {Messages, <<>>} = wamper_protocol:deserialize(Frame, Enc),
     lists:foreach(fun(Msg) -> awre_con:send_to_client(Con, Msg) end, Messages),
@@ -70,9 +75,11 @@ handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{awre=Con, gun=_Pid, enc=Enc
 handle_info(_, State) ->
     {ok, State}.   
 
+shutdown(#state{gun=undefined}) ->
+    ok;
 shutdown(#state{gun=Pid}) ->
-    unlink(Pid),
-    gun:close(Pid),
+    gun:shutdown(Pid),
+    demonitor(Ref, [flush]),
     ok.
 
 %%

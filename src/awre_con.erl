@@ -127,6 +127,7 @@ handle_cast(Msg, State) ->
 	{noreply, State}.
 
 handle_info(Data,#state{transport = {T,TState}} = State) ->
+  %TODO: add return statements instead of send_to_client and close_connection
   {ok, NewTState} = T:handle_info(Data,TState),
   {noreply, State#state{transport={T, NewTState}}};
 handle_info(Info, State) ->
