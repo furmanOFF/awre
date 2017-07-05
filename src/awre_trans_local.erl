@@ -30,50 +30,40 @@
 -export([shutdown/1]).
 
 -record(state,{
-               awre_con = none,
                version = unknown,
                client_details = unknown,
                routing = none
                }).
 
 
-init(Args) ->
-  #{realm := Realm, awre_con := Con, client_details := CDetails, version := Version} = Args,
+init(#{realm := Realm, client_details := CDetails, version := Version}) ->
   Routing = erwa_routing:init(),
   % need to set source to local
-  State = #state{routing=Routing ,awre_con=Con, version = Version, client_details=CDetails},
-  send_to_router({hello,Realm,#{version => Version, roles => CDetails}},State).
+  State = #state{routing=Routing, version = Version, client_details=CDetails},
+  send_to_router({hello, Realm, #{version => Version, roles => CDetails}},State).
 
-send_to_router(MsgToRouter, #state{routing=Routing ,awre_con=Con} = State) ->
-  case erwa_routing:handle_message(MsgToRouter,Routing) of
-    {ok,NewRouting} ->
-      {ok,State#state{routing=NewRouting}};
-    {stop,NewRouting} ->
-      awre_con:close_connection(Con),
-      {ok,State#state{routing=NewRouting}};
-    {reply,Msg,NewRouting} ->
-      awre_con:send_to_client(Con, Msg),
-      {ok,State#state{routing=NewRouting}};
-    {reply_stop,Msg,NewRouting} ->
-      awre_con:send_to_client(Con, Msg),
-      awre_con:close_connection(Con),
-      {ok,State#state{routing=NewRouting}}
+send_to_router(MsgToRouter, #state{routing=Routing} = State) ->
+  case erwa_routing:handle_message(MsgToRouter, Routing) of
+    {ok, NewRouting} ->
+      {noreply, State#state{routing=NewRouting}};
+    {stop, NewRouting} ->
+      {stop, normal, State#state{routing=NewRouting}};
+    {reply, Msg, NewRouting} ->
+      {reply, [Msg], State#state{routing=NewRouting}};
+    {reply_stop, Msg, NewRouting} ->
+      {stop, normal, [Msg], State#state{routing=NewRouting}}
   end.
 
-handle_info({erwa,MsgFromRouter},#state{routing=Routing ,awre_con=Con}=State) ->
+handle_info({erwa,MsgFromRouter},#state{routing=Routing}=State) ->
   case erwa_routing:handle_info(MsgFromRouter,Routing) of
-    {ok,NewRouting} ->
-      {ok,State#state{routing=NewRouting}};
+    {ok, NewRouting} ->
+      {noreply, State#state{routing=NewRouting}};
     {stop,NewRouting} ->
-      awre_con:close_connection(Con),
-      {ok,State#state{routing=NewRouting}};
-    {send,Msg,NewRouting} ->
-      awre_con:send_to_client(Con, Msg),
-      {ok,State#state{routing=NewRouting}};
-    {send_stop,Msg,NewRouting} ->
-      awre_con:send_to_client(Con, Msg),
-      awre_con:close_connection(Con),
-      {ok,State#state{routing=NewRouting}}
+      {stop, normal, State#state{routing=NewRouting}};
+    {send, Msg, NewRouting} ->
+      {reply, [Msg], State#state{routing=NewRouting}};
+    {send_stop, Msg, NewRouting} ->
+      {stop, normal, [Msg], State#state{routing=NewRouting}}
   end.
 
 shutdown(_State) ->

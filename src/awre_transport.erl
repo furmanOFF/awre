@@ -28,7 +28,12 @@
 %% behaviour
 -callback init(Args :: map()) -> {ok,State :: any()}.
 -callback send_to_router(Message :: term(), State :: any()) -> {ok, NewState :: any()}.
--callback handle_info(Data :: any(), State :: any()) -> {ok, NewState :: any()}.
+-callback handle_info(Data :: any(), State :: any()) -> 
+        {noreply, State} | 
+        {reply, [Msg], State} | 
+        {stop, Reason, [Msg], State} | 
+        {stop, Reason, State}
+    when State :: any().
 -callback shutdown(State :: any()) -> ok.
 
 init(Args0=#{uri:=Uri}) ->

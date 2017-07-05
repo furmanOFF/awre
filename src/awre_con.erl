@@ -26,8 +26,6 @@
 
 %% API.
 -export([start_link/4]).
--export([send_to_client/2]).
--export([close_connection/1]).
 
 %% gen_server
 -export([init/1]).
@@ -81,15 +79,6 @@
 start_link(Pid, Uri, Realm, Encoding) when is_binary(Realm) ->
   gen_server:start_link(?MODULE, {Pid, Uri, Realm, Encoding}, []).
 
--spec send_to_client(Pid :: pid(), Msg :: term()) -> ok.
-send_to_client(Pid, Msg) ->
-  gen_server:cast(Pid, {awre_out, Msg}).
-
--spec close_connection(Pid :: pid()) -> ok.
-close_connection(Pid) ->
-  gen_server:cast(Pid, terminate).
-
-
 %% gen_server
 init({Pid, Uri, Realm, Encoding}) ->
   {Trans, TState} = awre_transport:init(#{
@@ -109,8 +98,6 @@ handle_call(Msg, _From, State) ->
   error_logger:warning_msg("unexpected call: ~w~n", [Msg]),
   {noreply, State}.
 
-handle_cast({awre_out, Msg}, State) ->
-  handle_message_from_router(Msg, State);
 handle_cast({shutdown, Details, Reason}, #state{goodbye_sent=GS,transport= {TMod,TState}}=State) ->
   NewState = case GS of
   true ->
@@ -120,16 +107,25 @@ handle_cast({shutdown, Details, Reason}, #state{goodbye_sent=GS,transport= {TMod
     State#state{transport={TMod,NewTState}}
   end,
   {noreply,NewState#state{goodbye_sent=true}};
-handle_cast(terminate, State) ->
-  {stop, normal, State};
 handle_cast(Msg, State) ->
   error_logger:warning_msg("cast: ~w~n", [Msg]),
 	{noreply, State}.
 
 handle_info(Data,#state{transport = {T,TState}} = State) ->
-  %TODO: add return statements instead of send_to_client and close_connection
-  {ok, NewTState} = T:handle_info(Data,TState),
-  {noreply, State#state{transport={T, NewTState}}};
+  case T:handle_info(Data, TState) of
+    {noreply, NewTState} ->
+      {noreply, State#state{transport={T, NewTState}}};
+    {reply, Reply, NewTState} ->
+      handle_reply(Reply, State#state{transport={T, NewTState}});
+    {stop, Reason, Reply, NewTState1} ->
+      NewTState2 = case handle_reply(Reply, State#state{transport={T, NewTState1}}) of
+        {_, S} -> S;
+        {_, _, S} -> S
+      end,
+      {stop, Reason, State#state{transport={T, NewTState2}}};
+    {stop, Reason, NewTState} ->
+      {stop, Reason, State#state{transport={T, NewTState}}}
+  end;
 handle_info(Info, State) ->
   error_logger:warning_msg("info: ~w~n", [Info]),
 	{noreply, State}.
@@ -166,13 +162,26 @@ handle_message_from_client({error,invocation,RequestId,ArgsKw,ErrorUri}, _From, 
   {ok, NewState} = send_to_router({error, invocation, RequestId, #{}, ErrorUri, [], ArgsKw}, State),
   {reply, ok, NewState}.
 
+%% handle Messages from transport one by one
+handle_reply([Msg|T], State) ->
+  case handle_message_from_router(Msg, State) of
+    {ok, NewState} ->
+      handle_reply(T, NewState);
+    {stop, Reason, State} ->
+      {stop, Reason, State}
+  end;
+handle_reply([], State) ->
+  {noreply, State}.
+
 handle_message_from_router({welcome, SessionId, RouterDetails}, State) ->
   {Pid, _} = get_ref(hello, undefined, State),
   Pid ! {awre_welcome, self(), SessionId, RouterDetails},
-  {noreply, State};
+  {ok, State};
 handle_message_from_router({abort, Details, Reason},State) ->
   {Pid, _} = get_ref(hello, undefined, State),
   Pid ! {awre_abort, self(), Details, Reason},
+  {stop, Reason, State};
+handle_message_from_router({stop, _, Reason}, State) ->
   {stop, Reason, State};
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
   NewState = case GS of
@@ -183,20 +192,19 @@ handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=St
       NState
   end,
   {stop, normal, NewState};
-%handle_message_from_router({error,},#state{ets=Ets}) ->
-%handle_message_from_router({published,},#state{ets=Ets}) ->
+
 handle_message_from_router({subscribed, RequestId, SubscriptionId}, #state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(subscribe, RequestId, State),
   Mfa = maps:get(mfa,Args),
   ets:insert_new(Ets,#subscription{id=SubscriptionId,mfa=Mfa,pid=Pid}),
   Pid ! {awre_subscribed, self(), RequestId, SubscriptionId},
-  {noreply, State};
+  {ok, State};
 handle_message_from_router({unsubscribed, RequestId}, #state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(unsubscribe, RequestId, State),
   SubscriptionId = maps:get(sub_id, Args),
   ets:delete(Ets, SubscriptionId),
   Pid ! {awre_unsubscribed, self(), RequestId},
-  {noreply, State};
+  {ok, State};
 
 handle_message_from_router({event,SubscriptionId,PublicationId,Details},State) ->
   handle_message_from_router({event,SubscriptionId,PublicationId,Details,undefined,undefined},State);
@@ -220,7 +228,7 @@ handle_message_from_router({event,SubscriptionId,PublicationId,Details,Arguments
           Pid ! {awre_event_error, self(), Error, Reason, erlang:get_stacktrace()}
       end
   end,
-  {noreply, State};
+  {ok, State};
 handle_message_from_router({result,RequestId,Details},State) ->
   handle_message_from_router({result,RequestId,Details,undefined,undefined},State);
 handle_message_from_router({result,RequestId,Details,Arguments},State) ->
@@ -228,21 +236,21 @@ handle_message_from_router({result,RequestId,Details,Arguments},State) ->
 handle_message_from_router({result,RequestId,Details,Arguments,ArgumentsKw},State) ->
   {Pid, _} = get_ref(call, RequestId, State),
   Pid ! {awre_result, self(), RequestId, Details, Arguments, ArgumentsKw},
-  {noreply,State};
+  {ok, State};
 
 handle_message_from_router({registered,RequestId,RegistrationId},#state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(register, RequestId, State),
   Mfa = maps:get(mfa,Args),
   ets:insert_new(Ets,#registration{id=RegistrationId, mfa=Mfa, pid=Pid}),
   Pid ! {awre_registered, self(), RequestId, RegistrationId},
-  {noreply,State};
+  {ok, State};
 
 handle_message_from_router({unregistered,RequestId},#state{ets=Ets}=State) ->
   {Pid, Args} = get_ref(unregister, RequestId,State),
   RegistrationId = maps:get(reg_id,Args),
   ets:delete(Ets,RegistrationId),
   Pid ! {awre_unregistered, self(), RequestId},
-  {noreply,State};
+  {ok, State};
 
 handle_message_from_router({invocation,RequestId,RegistrationId,Details},State) ->
   handle_message_from_router({invocation,RequestId,RegistrationId,Details,undefined,undefined},State);
@@ -275,7 +283,7 @@ handle_message_from_router({invocation,RequestId,RegistrationId,Details,Argument
           NState
       end
   end,
-  {ok,NewState};
+  {ok, NewState};
 
 handle_message_from_router({error,call,RequestId,Details,Error},State) ->
   handle_message_from_router({error,call,RequestId,Details,Error,undefined,undefined},State);
@@ -284,7 +292,7 @@ handle_message_from_router({error,call,RequestId,Details,Error,Arguments},State)
 handle_message_from_router({error,call,RequestId,Details,Error,Arguments,ArgumentsKw},State) ->
   {Pid, _} = get_ref(call, RequestId, State),
   Pid ! {awre_error, self(), RequestId, Details, Error, Arguments, ArgumentsKw},
-  {noreply, State}.
+  {ok, State}.
 
 %
 % Session Scope IDs
