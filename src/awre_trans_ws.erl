@@ -65,7 +65,7 @@ handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid, awre=Con}) ->
     {ok, S};
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {ok, S};
-handle_info({'DOWN', _Ref, process, _Pid, Reason}, S=#state{monitor=_Ref}) ->
+handle_info({'DOWN', _Ref, process, _Pid, Reason}, S=#state{monitor=_Ref, gun=_Pid, awre=Con}) ->
     awre_con:send_to_client(Con, {abort, #{reason => Reason}, gun_down}),
     {ok, S#state{gun=undefined, monitor=undefined}};
 handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{awre=Con, gun=_Pid, enc=Enc, mode=_Mode}) ->
@@ -77,11 +77,8 @@ handle_info(_, State) ->
 
 shutdown(#state{gun=undefined}) ->
     ok;
-shutdown(#state{gun=Pid}) ->
+shutdown(#state{gun=Pid, monitor=Ref}) ->
     gun:shutdown(Pid),
     demonitor(Ref, [flush]),
     ok.
-
-%%
-
 
