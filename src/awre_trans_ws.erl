@@ -16,12 +16,15 @@
     realm, version, client_details
 }).
 
+-define(SCHEME_DEFAULTS, [{scheme_defaults, [{ws, 80}, {wss, 443}]}]).
+
 %% awre_transport
-init(#{ uri:=Uri, enc:=Encoding, realm:=Realm, version:=Version, client_details:=Details}) ->
-    Opts = [{scheme_defaults, [{ws, 80}, {wss, 443}]}],
-    {ok, {_Scheme, _, Host, Port, Path, _}} = http_uri:parse(Uri, Opts),
+init(#{uri:=Uri, realm:=Realm, version:=Version, client_details:=Details, options:=Opts}) ->
+    {ok, {_Scheme, _, Host, Port, Path, _}} = http_uri:parse(Uri, ?SCHEME_DEFAULTS),
+    Encoding = maps:get(encoding, Opts, msgpack),
     %TODO: retry => Opts#{retry}
-    {ok, Pid} = gun:open(Host, Port, #{protocols => [http]}),
+    GunOpts = gun_opts(Opts, #{protocols => [http]}),
+    {ok, Pid} = gun:open(Host, Port, GunOpts),
     link(Pid),
     {ok, #state{
         path = Path, 
@@ -77,3 +80,10 @@ shutdown(#state{gun=Pid, monitor=Ref}) ->
     demonitor(Ref, [flush]),
     ok.
 
+%%
+gun_opts(Opts=#{ip := Ip}, Acc0) ->
+    Acc1 = maps:update_with(transport_opts, 
+        fun(Val) -> [{ip, Ip} | Val] end, [{ip, Ip}], Acc0),
+    gun_opts(maps:remove(ip, Opts), Acc1);
+gun_opts(_, Acc) -> 
+    Acc.

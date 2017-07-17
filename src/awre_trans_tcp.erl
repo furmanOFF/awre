@@ -43,10 +43,10 @@
 
 
 init(#{realm := Realm, client_details := CDetails, version := Version,
-    host := Host, port := Port, enc := Encoding}) ->
+    host := Host, port := Port, options := Opts}) ->
   {ok, Socket} = gen_tcp:connect(Host,Port,[binary,{packet,0}]),
   % need to send the new TCP packet
-  Enc = case Encoding of
+  Enc = case maps:get(encoding, Opts, undefined) of
           json -> raw_json;
           raw_json -> raw_json;
           msgpack -> raw_msgpack;

@@ -75,14 +75,14 @@
 }).
 
 %% API
--spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::binary(), Encoding::atom()) -> {ok, pid()}.
-start_link(Pid, Uri, Realm, Encoding) when is_binary(Realm) ->
-  gen_server:start_link(?MODULE, {Pid, Uri, Realm, Encoding}, []).
+-spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::binary(), Opts::#{}) -> {ok, pid()}.
+start_link(Pid, Uri, Realm, Opts) when is_binary(Realm) ->
+  gen_server:start_link(?MODULE, {Pid, Uri, Realm, Opts}, []).
 
 %% gen_server
-init({Pid, Uri, Realm, Encoding}) ->
+init({Pid, Uri, Realm, Opts}) ->
   {Trans, TState} = awre_transport:init(#{
-    awre_con => self(), uri => Uri, realm => Realm, enc => Encoding,
+    awre_con => self(), uri => Uri, realm => Realm, options => Opts,
     version => awre:get_version(), client_details => ?CLIENT_DETAILS
   }),
   State = #state{

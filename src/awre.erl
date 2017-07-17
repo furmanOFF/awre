@@ -58,20 +58,20 @@ get_version() ->
 %% The connection will be established to the local router in the VM.
 -spec connect(Realm :: binary()) -> {ok, Con :: pid()}.
 connect(Realm) ->
-  supervisor:start_child(awre_sup, [self(), undefined, Realm, undefined]).
+  supervisor:start_child(awre_sup, [self(), undefined, Realm, #{}]).
 
 %% @doc connect to a remote router.
 %% Connect to the router at the given uri Uri to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
--spec connect(Uri :: string(), Realm :: binary(), Encoding :: json | msgpack) -> {ok, Con :: pid()}.
-connect(Uri, Realm, Encoding) ->
-  supervisor:start_child(awre_sup, [self(), Uri, Realm, Encoding]).
+-spec connect(Uri :: string(), Realm :: binary(), Opts::#{}) -> {ok, Con :: pid()}.
+connect(Uri, Realm, Opts) ->
+  supervisor:start_child(awre_sup, [self(), Uri, Realm, Opts]).
 
 %% Connect to the router at the given host Host on port Port to the realm Realm.
 %% The connection will be established by using the encoding Encoding for serialization.
--spec connect(Host :: inet:hostname(), Port :: inet:port_number(), Realm :: binary(), Encoding :: raw_json | raw_msgpack) -> {ok, Con :: pid()}.
-connect(Host, Port, Realm, Encoding) ->
-  supervisor:start_child(awre_sup, [self(), {Host, Port}, Realm, Encoding]).
+-spec connect(Host :: inet:hostname(), Port :: inet:port_number(), Realm :: binary(), Opts::#{}) -> {ok, Con :: pid()}.
+connect(Host, Port, Realm, Opts) ->
+  supervisor:start_child(awre_sup, [self(), {Host, Port}, Realm, Opts]).
 
 %% @doc shutdown given connection
 %% TODO: implement
