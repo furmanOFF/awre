@@ -44,6 +44,8 @@
 
 -record(state, {
   ets = undefined,
+  owner :: pid(),
+  monitor :: pid(),
   goodbye_sent = false,
   transport = {none,none},
   subscribe_id=1,
@@ -85,12 +87,13 @@ init({Pid, Uri, Realm, Opts}) ->
     awre_con => self(), uri => Uri, realm => Realm, options => Opts,
     version => awre:get_version(), client_details => ?CLIENT_DETAILS
   }),
-  State = #state{
+  Ref = monitor(process, Pid),
+  {ok, #state{
     ets = ets:new(con_data, [set, protected, {keypos, 2}]),
+    owner = Pid,
+    monitor = Ref,
     transport = {Trans, TState}
-  },
-  set_ref(hello, undefined, Pid, #{}, State),
-  {ok, State}.
+  }}.
 
 handle_call({awre_call, Msg}, From, State) ->
   handle_message_from_client(Msg, From, State);
@@ -126,6 +129,8 @@ handle_info(Data,#state{transport = {T,TState}} = State) ->
     {stop, Reason, NewTState} ->
       {stop, Reason, State#state{transport={T, NewTState}}}
   end;
+handle_info({'DOWN', _Ref, process, _Owner, Reason}, S=#state{monitor=_Ref}) ->
+    {stop, {owner_gone, Reason}, S#state{monitor=undefined, owner=undefined}};
 handle_info(Info, State) ->
   error_logger:warning_msg("info: ~w~n", [Info]),
 	{noreply, State}.
@@ -173,14 +178,12 @@ handle_reply([Msg|T], State) ->
 handle_reply([], State) ->
   {noreply, State}.
 
-handle_message_from_router({welcome, SessionId, RouterDetails}, State) ->
-  {Pid, _} = get_ref(hello, undefined, State),
+handle_message_from_router({welcome, SessionId, RouterDetails}, S=#state{owner=Pid}) ->
   Pid ! {awre_welcome, self(), SessionId, RouterDetails},
-  {ok, State};
-handle_message_from_router({abort, Details, Reason},State) ->
-  {Pid, _} = get_ref(hello, undefined, State),
+  {ok, S};
+handle_message_from_router({abort, Details, Reason}, S=#state{owner=Pid}) ->
   Pid ! {awre_abort, self(), Details, Reason},
-  {stop, Reason, State};
+  {stop, Reason, S};
 handle_message_from_router({stop, _, Reason}, State) ->
   {stop, Reason, State};
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
