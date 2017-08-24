@@ -61,14 +61,14 @@ handle_info({gun_ws_upgrade, _Pid, ok, _}, S=#state{gun=_Pid, realm=Realm, versi
     {noreply, S#state{ws_upgrade=true}};
 
 handle_info({gun_response, _Pid, _, _, Status, Headers}, S=#state{ws_upgrade=false, gun=_Pid}) ->
-    {stop, ws_upgrade_failed, [{abort, #{status => Status, headers => Headers}, ws_upgrade_failed}], S};
+    {stop, {ws_upgrade_failed, Status}, [{abort, #{status => Status, headers => Headers}, ws_upgrade_failed}], S};
 handle_info({gun_response, _Pid, _, _, Status, Headers}, S=#state{gun=_Pid}) ->
-    {stop, ws_error, [{abort, #{status => Status, headers => Headers}, ws_error}], S};
+    {stop, {ws_error, Status}, [{abort, #{status => Status, headers => Headers}, ws_error}], S};
 
 handle_info({gun_error, _Pid, _, Reason}, S=#state{ws_upgrade=false, gun=_Pid}) ->
-    {stop, ws_upgrade_failed, [{abort, #{reason => Reason}, ws_upgrade_failed}], S};
+    {stop, {ws_upgrade_failed, Reason}, [{abort, #{reason => Reason}, ws_upgrade_failed}], S};
 handle_info({gun_error, _Pid, _, Reason}, S=#state{gun=_Pid}) ->
-    {stop, ws_error, [{abort, #{reason => Reason}, ws_error}], S};
+    {stop, {ws_error, Reason}, [{abort, #{reason => Reason}, ws_error}], S};
 
 handle_info({gun_down, _Pid, _, _, _, _}, S=#state{gun=_Pid}) ->
     {noreply, S};
