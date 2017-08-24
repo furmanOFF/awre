@@ -111,7 +111,7 @@ handle_cast({shutdown, Details, Reason}, #state{goodbye_sent=GS,transport= {TMod
   end,
   {noreply,NewState#state{goodbye_sent=true}};
 handle_cast(Msg, State) ->
-  error_logger:warning_msg("cast: ~w~n", [Msg]),
+  error_logger:warning_msg("unexpected cast: ~w~n", [Msg]),
 	{noreply, State}.
 
 handle_info(Data,#state{transport={T,TState}} = State) ->
@@ -132,7 +132,7 @@ handle_info(Data,#state{transport={T,TState}} = State) ->
 handle_info({'DOWN', _Ref, process, _Owner, Reason}, S=#state{monitor=_Ref}) ->
     {stop, {owner_gone, Reason}, S#state{monitor=undefined, owner=undefined}};
 handle_info(Info, State) ->
-  error_logger:warning_msg("info: ~w~n", [Info]),
+  error_logger:warning_msg("unexpected info: ~w~n", [Info]),
 	{noreply, State}.
 
 terminate(Reason, #state{transport={TMod, TState}}) ->
@@ -172,8 +172,8 @@ handle_reply([Msg|T], State) ->
   case handle_message_from_router(Msg, State) of
     {ok, NewState} ->
       handle_reply(T, NewState);
-    {stop, Reason, State} ->
-      {stop, Reason, State}
+    {stop, _, _}=Stop ->
+      Stop
   end;
 handle_reply([], State) ->
   {noreply, State}.
