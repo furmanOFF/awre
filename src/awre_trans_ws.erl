@@ -26,7 +26,6 @@ init(#{uri:=Uri, realm:=Realm, version:=Version, client_details:=Details, option
     %TODO: retry => Opts#{retry}
     GunOpts = gun_opts(Opts, #{protocols => [http]}),
     {ok, Pid} = gun:open(Host, Port, GunOpts),
-    link(Pid),
     {ok, #state{
         path = Path, 
         gun = Pid, 
@@ -84,12 +83,12 @@ handle_info(_, State) ->
 shutdown(_Reason, #state{gun=undefined}) ->
     ok;
 shutdown(normal, #state{gun=Pid, monitor=Ref}) ->
+    demonitor(Ref),
     gun:shutdown(Pid),
-    demonitor(Ref, [flush]),
     ok;
 shutdown(_Reason, #state{gun=Pid, monitor=Ref}) ->
+    demonitor(Ref),
     gun:close(Pid),
-    demonitor(Ref, [flush]),
     ok.
 
 %%

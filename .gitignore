@@ -13,3 +13,4 @@ _rel/
 logs/
 _build/
 rebar.lock
+.rebar3/
