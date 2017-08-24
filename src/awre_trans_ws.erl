@@ -5,7 +5,7 @@
 -export([init/1]).
 -export([send_to_router/2]).
 -export([handle_info/2]).
--export([shutdown/1]).
+-export([shutdown/2]).
 
 -record(state,{
     path::iodata(),
@@ -81,10 +81,14 @@ handle_info({gun_ws, _Pid, {_Mode, Frame}}, S=#state{gun=_Pid, enc=Enc, mode=_Mo
 handle_info(_, State) ->
     {noreply, State}.   
 
-shutdown(#state{gun=undefined}) ->
+shutdown(_Reason, #state{gun=undefined}) ->
     ok;
-shutdown(#state{gun=Pid, monitor=Ref}) ->
+shutdown(normal, #state{gun=Pid, monitor=Ref}) ->
     gun:shutdown(Pid),
+    demonitor(Ref, [flush]),
+    ok;
+shutdown(_Reason, #state{gun=Pid, monitor=Ref}) ->
+    gun:close(Pid),
     demonitor(Ref, [flush]),
     ok.
 

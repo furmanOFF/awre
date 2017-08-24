@@ -27,7 +27,7 @@
 -export([init/1]).
 -export([send_to_router/2]).
 -export([handle_info/2]).
--export([shutdown/1]).
+-export([shutdown/2]).
 
 -record(state,{
                socket = none,
@@ -93,5 +93,5 @@ handle_info({tcp,Socket,<<127,L:4,S:4,0,0>>},
 handle_info(_Data, State) ->
   {noreply, State}.
 
-shutdown(#state{socket=S}) ->
+shutdown(_Reason, #state{socket=S}) ->
   ok = gen_tcp:close(S).

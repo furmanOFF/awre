@@ -34,7 +34,7 @@
         {stop, Reason, [Msg], State} | 
         {stop, Reason, State}
     when State :: any().
--callback shutdown(State :: any()) -> ok.
+-callback shutdown(Reason :: term(), State :: any()) -> ok.
 
 init(Args0=#{uri:=Uri}) ->
     {Module, Args1} = case Uri of

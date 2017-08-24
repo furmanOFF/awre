@@ -27,7 +27,7 @@
 -export([init/1]).
 -export([send_to_router/2]).
 -export([handle_info/2]).
--export([shutdown/1]).
+-export([shutdown/2]).
 
 -record(state,{
                version = unknown,
@@ -66,5 +66,5 @@ handle_info({erwa,MsgFromRouter},#state{routing=Routing}=State) ->
       {stop, normal, [Msg], State#state{routing=NewRouting}}
   end.
 
-shutdown(_State) ->
+shutdown(_Reason, _State) ->
   ok.

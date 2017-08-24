@@ -114,18 +114,18 @@ handle_cast(Msg, State) ->
   error_logger:warning_msg("cast: ~w~n", [Msg]),
 	{noreply, State}.
 
-handle_info(Data,#state{transport = {T,TState}} = State) ->
+handle_info(Data,#state{transport={T,TState}} = State) ->
   case T:handle_info(Data, TState) of
     {noreply, NewTState} ->
       {noreply, State#state{transport={T, NewTState}}};
     {reply, Reply, NewTState} ->
       handle_reply(Reply, State#state{transport={T, NewTState}});
-    {stop, Reason, Reply, NewTState1} ->
-      NewTState2 = case handle_reply(Reply, State#state{transport={T, NewTState1}}) of
+    {stop, Reason, Reply, NewTState} ->
+      State1 = case handle_reply(Reply, State#state{transport={T,NewTState}}) of
         {_, S} -> S;
         {_, _, S} -> S
       end,
-      {stop, Reason, State#state{transport={T, NewTState2}}};
+      {stop, Reason, State1};
     {stop, Reason, NewTState} ->
       {stop, Reason, State#state{transport={T, NewTState}}}
   end;
@@ -135,8 +135,8 @@ handle_info(Info, State) ->
   error_logger:warning_msg("info: ~w~n", [Info]),
 	{noreply, State}.
 
-terminate(_Reason, #state{transport={TMod, TState}}) ->
-  ok = TMod:shutdown(TState).
+terminate(Reason, #state{transport={TMod, TState}}) ->
+  TMod:shutdown(Reason, TState).
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
