@@ -84,7 +84,7 @@ handle_info({tcp,Socket,Data},#state{buffer=Buffer,socket=Socket,enc=Enc, handsh
   {Messages, NewBuffer} = wamper_protocol:deserialize(<<Buffer/binary, Data/binary>>,Enc),
   {reply, Messages, State#state{buffer=NewBuffer}};
 handle_info({tcp,Socket,<<127,0,0,0>>},#state{socket=Socket}=State) ->
-  {reply, [{abort, #{}, tcp_handshake_failed}], State};
+  {stop, tcp_handshake_failed, [{abort, #{}, tcp_handshake_failed}], State};
 handle_info({tcp,Socket,<<127,L:4,S:4,0,0>>},
             #state{socket=Socket,realm=Realm,sernum=SerNum, version=Version, client_details=CDetails}=State) ->
   S = SerNum,
