@@ -77,7 +77,7 @@
 }).
 
 %% API
--spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::binary(), Opts::#{}) -> {ok, pid()}.
+-spec start_link(Pid :: pid(), Uri :: string() | {inet:hostname(), inet:port_number()}, Realm::binary(), Opts::map()) -> {ok, pid()}.
 start_link(Pid, Uri, Realm, Opts) when is_binary(Realm) ->
   gen_server:start_link(?MODULE, {Pid, Uri, Realm, Opts}, []).
 
@@ -184,6 +184,9 @@ handle_message_from_router({welcome, SessionId, RouterDetails}, S=#state{owner=P
 handle_message_from_router({abort, Details, Reason}, S=#state{owner=Pid}) ->
   Pid ! {awre_abort, self(), Details, Reason},
   {stop, Reason, S};
+handle_message_from_router({error, Details, Reason}, S=#state{owner=Pid}) ->
+  Pid ! {awre_error, self(), Details, Reason},
+  {ok, S};
 handle_message_from_router({stop, _, Reason}, State) ->
   {stop, Reason, State};
 handle_message_from_router({goodbye,_Details,_Reason},#state{goodbye_sent=GS}=State) ->
